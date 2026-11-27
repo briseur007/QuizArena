@@ -38,13 +38,35 @@ docs/                design.pdf, report.pdf, slides.pdf, screenshots/
 
 ### API
 
+Prérequis : Node.js 24+, et MongoDB (local, ou une base gratuite MongoDB Atlas).
+
 ```powershell
 cd api
-copy .env.example .env    # puis remplir MONGODB_URI et JWT_ACCESS_SECRET
+copy .env.example .env    # puis remplir MONGODB_URI et JWT_ACCESS_SECRET (≥ 32 caractères)
 npm install
+npm run seed              # données de démo + comptes de test (voir plus bas)
 npm run dev               # http://localhost:3000/health
-npm test
+npm test                  # tests d'intégration (MongoDB en mémoire, aucune base à installer)
 ```
+
+`api/requests.http` contient toutes les requêtes, prêtes à envoyer avec l'extension VS Code *REST Client*.
+
+Structure de l'API (une couche par rôle, un module par ressource) :
+
+```
+src/
+  app.ts, routes.ts      middlewares (helmet, CORS, limite de taille, rate limiting) et table de routage
+  config/env.ts          variables d'environnement validées au démarrage (Zod)
+  middlewares/           authentification JWT, contrôle de rôle, format d'erreur unique
+  modules/
+    auth/                users, sessions (refresh tokens hachés, rotation)
+    courses/             courses, enrollments (code d'invitation)
+    quizzes/             quizzes, questions (brouillon → publication), rapport
+    attempts/            attempts : démarrage, minuteur serveur, correction, classement
+  seed.ts                données de démonstration
+```
+
+Chaque module : `*.model.ts` (Mongoose + index), `*.schemas.ts` (Zod), `*.service.ts` (règles métier et autorisation objet), `*.controller.ts` (HTTP).
 
 ### App
 
@@ -72,7 +94,9 @@ Chaque feature a trois couches : `domain` (entités + contrats, sans Flutter ni 
 
 ## Endpoints
 
-Contrat attendu par l'app Flutter (`app/lib/features/*/data/datasources`). Toutes les listes sont paginées : `?page=&limit=` (limite max 50), réponse `{ items, page, limit, total }`. Erreurs : `{ error: { code, message, details? } }`.
+Toutes les listes sont paginées : `?page=&limit=` (limite max 50), réponse `{ items, page, limit, total }`. Erreurs : `{ error: { code, message, details? } }`. Authentification : `Authorization: Bearer <accessToken>`.
+
+Codes d'erreur : **401** non connecté, **403** mauvais rôle (ex. un étudiant qui crée un cours), **404** ressource inexistante *ou appartenant à quelqu'un d'autre* (on ne révèle pas son existence), **409** conflit métier (`code` précis dans la réponse), **422** validation (`details` par champ), **429** trop de tentatives de connexion.
 
 | Méthode | Chemin | Rôle | Succès | Erreurs principales |
 |---|---|---|---|---|
@@ -80,33 +104,51 @@ Contrat attendu par l'app Flutter (`app/lib/features/*/data/datasources`). Toute
 | POST | /auth/register | public | 201 `{user, accessToken, refreshToken}` | 409 e-mail pris, 422 |
 | POST | /auth/login | public | 200 `{user, accessToken, refreshToken}` | 401, 422, 429 |
 | POST | /auth/refresh | public (refresh token) | 200 nouvelle paire (rotation) | 401 |
-| POST | /auth/logout | connecté | 204 (révoque la session) | 401 |
+| POST | /auth/logout | détenteur du refresh token | 204 (révoque la session, idempotent) | 422 |
 | GET | /auth/me | connecté | 200 `user` (`id, name, email, role, level`) | 401 |
-| GET | /courses | étudiant : rejoints · enseignant : créés | 200 page de `Course` | 401 |
+| GET | /courses?q= | étudiant : rejoints · enseignant : créés | 200 page de `Course` (recherche par nom) | 401, 422 |
 | POST | /courses | enseignant | 201 `Course` (code généré) | 403, 422 |
-| POST | /courses/join | étudiant | 200 `Course` | 404 code inconnu, 409 déjà inscrit |
-| GET | /courses/:id/quizzes | membre / propriétaire du cours | 200 page de `Quiz` (étudiant : publiés seulement) | 403, 404 |
-| POST | /courses/:id/quizzes | enseignant propriétaire | 201 quiz complet (brouillon) | 403, 422 |
+| POST | /courses/join | étudiant | 200 `Course` | 404 `COURSE_CODE_UNKNOWN`, 409 `ALREADY_ENROLLED` |
+| GET | /courses/:id/quizzes | membre / propriétaire du cours | 200 page de `Quiz` (étudiant : publiés seulement) | 404 |
+| POST | /courses/:id/quizzes | enseignant propriétaire | 201 quiz complet (brouillon) | 403, 404, 422 |
+| GET | /courses/:id/leaderboard | membre / propriétaire du cours | 200 `{title, participants, entries[]}` cumul du cours | 404 |
 | GET | /quizzes?todo=true | étudiant | 200 quiz ouverts encore jouables | 401 |
-| GET | /quizzes?status=open\|closed\|draft | enseignant | 200 ses quiz filtrés | 401 |
+| GET | /quizzes?status=open\|closed\|draft | enseignant | 200 ses quiz filtrés | 422 |
 | GET | /quizzes/:id | enseignant propriétaire | 200 quiz avec `correctIndex` | 403, 404 |
-| PATCH | /quizzes/:id | enseignant propriétaire | 200 quiz complet | 403, 409 déjà publié, 422 |
-| POST | /quizzes/:id/publish | enseignant propriétaire | 200 `Quiz` | 403, 422 quiz incomplet |
-| GET | /quizzes/:id/report | enseignant propriétaire | 200 `{questions[], submissions[], average…}` | 403 |
-| POST | /quizzes/:id/attempts | étudiant inscrit | 201 tentative **sans les bonnes réponses**, `expiresAt`, `serverTime` (reprend la tentative en cours) | 403, 409 `NO_ATTEMPT_LEFT` |
-| PUT | /attempts/:id/answers | étudiant propriétaire | 204 | 403, 409 temps écoulé / déjà remis |
-| POST | /attempts/:id/submit | étudiant propriétaire | 200 résultat corrigé | 403, 409 déjà remis |
-| GET | /attempts/:id | étudiant propriétaire ou enseignant du cours | 200 résultat + corrections | 403, 404 |
-| GET | /attempts/me/latest | étudiant | 200 dernier résultat | 404 aucun |
-| GET | /quizzes/:id/leaderboard | membre du cours | 200 `{title, participants, entries[]}` (score puis durée, `isMe`) | 403 |
-| GET | /courses/:id/leaderboard | membre du cours | 200 idem, tous les quiz du cours | 403 |
+| PATCH | /quizzes/:id | enseignant propriétaire | 200 quiz complet | 403, 404, 409 `QUIZ_PUBLISHED`, 422 |
+| POST | /quizzes/:id/publish | enseignant propriétaire | 200 `Quiz` | 404, 409, 422 `QUIZ_INCOMPLETE` |
+| POST | /quizzes/:id/close | enseignant propriétaire | 200 `Quiz` (résultats définitifs) | 404, 409 |
+| GET | /quizzes/:id/report | enseignant propriétaire | 200 `{questions[], submissions[], average…}` | 403, 404 |
+| GET | /quizzes/:id/leaderboard | membre / propriétaire du cours | 200 `{title, participants, entries[]}` (score puis durée, `isMe`) | 404 |
+| POST | /quizzes/:id/attempts | étudiant inscrit | 201 tentative **sans les bonnes réponses**, `expiresAt`, `serverTime` · 200 si reprise | 403, 404, 409 `NO_ATTEMPT_LEFT` / `QUIZ_CLOSED` |
+| PUT | /attempts/:id/answers | étudiant propriétaire | 204 | 404, 409 `ATTEMPT_EXPIRED` / `ATTEMPT_SUBMITTED`, 422 |
+| POST | /attempts/:id/submit | étudiant propriétaire | 200 résultat corrigé | 404, 409 `ATTEMPT_SUBMITTED` |
+| GET | /attempts/:id | étudiant propriétaire ou enseignant du cours | 200 résultat + corrections | 404, 409 `ATTEMPT_IN_PROGRESS` |
+| GET | /attempts/me/latest | étudiant | 200 dernier résultat | 404 `NO_RESULT` |
 
 **Règles serveur T17** : la bonne réponse n'est jamais renvoyée avant la remise ; le minuteur est appliqué par le serveur (`expiresAt` fixé au démarrage, réponses refusées après, remise tardive corrigée avec les seules réponses enregistrées à temps) ; une tentative par étudiant sauf si `maxAttempts > 1`.
 
 ## Comptes de test
 
-_à compléter (script de seed)_
+Créés par `npm run seed`. Mot de passe de tous les comptes : **`QuizArena2026!`** (données de démonstration uniquement).
+
+| Rôle | E-mail | Contenu |
+|---|---|---|
+| Enseignant | nikiema@quizarena.bf | cours « Développement mobile » (code `MOBL3A`), quiz ouvert « Flutter & BLoC », brouillon « API & sécurité » |
+| Enseignant | traore@quizarena.bf | cours « Bases de données » (code `BDDL3A`), quiz « SQL de base » |
+| Étudiante | amina@quizarena.bf | inscrite aux 2 cours, « Flutter & BLoC » **à faire** (pour la démo en direct) |
+| Étudiants | fatou@, ibrahim@, moussa@, sarah@quizarena.bf | ont déjà passé « Flutter & BLoC » (classement rempli) |
+
+## Déploiement (A14)
+
+1. **MongoDB Atlas** : créer un cluster gratuit, un utilisateur de base, autoriser l'accès réseau de l'hébergeur, copier l'URI `mongodb+srv://…`.
+2. **Hébergeur** (Render, Railway…) : service Node depuis ce dépôt, dossier racine `api`, build `npm ci && npm run build`, démarrage `npm start`.
+3. Variables d'environnement : `NODE_ENV=production`, `MONGODB_URI`, `JWT_ACCESS_SECRET` (nouveau secret aléatoire), `TRUST_PROXY=1`.
+4. Une fois en ligne : `npm run seed -- --force` avec la `MONGODB_URI` de production (depuis votre poste), puis vérifier `https://<votre-api>/health`.
+5. App : `flutter build apk --release --dart-define=API_URL=https://<votre-api>`.
 
 ## Limites connues
 
-_à compléter_
+- Le jeton d'accès reste valide jusqu'à son expiration (15 min) après une déconnexion ; seule la session (refresh token) est révoquée immédiatement.
+- Le mode quiz en direct (fonctionnalité avancée) n'est pas encore implémenté.
+- L'APK release est encore signé avec la clé de debug.
