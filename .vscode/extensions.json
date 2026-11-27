@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "Dart-Code.flutter",
+    "Dart-Code.dart-code",
+    "felixangelov.bloc",
+    "dbaeumer.vscode-eslint",
+    "humao.rest-client",
+    "mongodb.mongodb-vscode"
+  ]
+}

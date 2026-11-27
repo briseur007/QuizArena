@@ -1,0 +1,14 @@
+# Secrets — ne JAMAIS commiter (pénalité -5)
+.env
+.env.*
+!.env.example
+
+# API
+api/node_modules/
+api/dist/
+api/coverage/
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.idea/
