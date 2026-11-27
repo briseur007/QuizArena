@@ -1,5 +1,5 @@
 name: quiz_arena
-description: "A new Flutter project."
+description: "QuizArena — quiz en classe (Flutter + BLoC)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -43,6 +43,8 @@ dependencies:
   get_it: ^9.3.0
   dio: ^5.11.1
   flutter_secure_storage: ^11.2.0
+  flutter_svg: ^2.5.1
+  shared_preferences: ^2.5.6
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +69,22 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/icons/
+
+  # Police de la maquette Figma (Inter), embarquée pour fonctionner hors ligne.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

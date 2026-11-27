@@ -15,7 +15,7 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error('Configuration invalide :', parsed.error.flatten().fieldErrors);
+  console.error('Configuration invalide :', z.flattenError(parsed.error).fieldErrors);
   process.exit(1);
 }
 

@@ -5,6 +5,7 @@
     "felixangelov.bloc",
     "dbaeumer.vscode-eslint",
     "humao.rest-client",
-    "mongodb.mongodb-vscode"
+    "mongodb.mongodb-vscode",
+    "figma.figma-vscode-extension"
   ]
 }

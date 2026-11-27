@@ -7,7 +7,12 @@ async function main() {
   console.log('MongoDB connecté');
 
   const app = createApp();
-  app.listen(env.PORT, () => {
+  // Express 5 passe l'erreur d'écoute (ex. EADDRINUSE) au callback : il faut la traiter.
+  app.listen(env.PORT, (err?: Error) => {
+    if (err) {
+      console.error(`Impossible d'écouter sur le port ${env.PORT} :`, err.message);
+      process.exit(1);
+    }
     console.log(`API QuizArena sur http://localhost:${env.PORT}`);
   });
 }

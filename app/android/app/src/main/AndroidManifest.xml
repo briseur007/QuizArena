@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Requis pour appeler l'API dans l'APK release (le template ne l'ajoute qu'en debug/profile). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="quiz_arena"
         android:name="${applicationName}"
