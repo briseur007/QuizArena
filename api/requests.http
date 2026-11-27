@@ -1,4 +1,173 @@
+# Collection de requêtes (extension VS Code « REST Client »).
+# Prérequis : `npm run seed` pour avoir les comptes de démo.
 @baseUrl = http://localhost:3000
+@password = QuizArena2026!
 
 ### Santé de l'API
 GET {{baseUrl}}/health
+
+# ======================================================================
+# Authentification
+# ======================================================================
+
+### Connexion étudiante (Amina)
+# @name student
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "amina@quizarena.bf", "password": "{{password}}" }
+
+### Connexion enseignant (Dr Nikiema)
+# @name teacher
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "nikiema@quizarena.bf", "password": "{{password}}" }
+
+@studentToken = {{student.response.body.accessToken}}
+@teacherToken = {{teacher.response.body.accessToken}}
+
+### Inscription
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "name": "Nouvel Étudiant", "email": "nouveau@quizarena.bf", "password": "{{password}}", "role": "student" }
+
+### Profil
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{studentToken}}
+
+### Rafraîchir (rotation : l'ancien refresh token devient invalide)
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{student.response.body.refreshToken}}" }
+
+### Déconnexion (révoque la session)
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+
+{ "refreshToken": "{{teacher.response.body.refreshToken}}" }
+
+# ======================================================================
+# Cours
+# ======================================================================
+
+### Mes cours (pagination + recherche)
+# @name courses
+GET {{baseUrl}}/courses?page=1&limit=20&q=mobile
+Authorization: Bearer {{teacherToken}}
+
+@courseId = {{courses.response.body.items[0].id}}
+
+### Créer un cours (enseignant)
+POST {{baseUrl}}/courses
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "name": "Réseaux", "level": "L3" }
+
+### Rejoindre un cours (étudiant) → 409 si déjà inscrit
+POST {{baseUrl}}/courses/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "code": "MOBL3A" }
+
+### Quiz du cours
+GET {{baseUrl}}/courses/{{courseId}}/quizzes
+Authorization: Bearer {{teacherToken}}
+
+### Classement du cours
+GET {{baseUrl}}/courses/{{courseId}}/leaderboard
+Authorization: Bearer {{studentToken}}
+
+# ======================================================================
+# Quiz (enseignant)
+# ======================================================================
+
+### Créer un brouillon
+# @name draft
+POST {{baseUrl}}/courses/{{courseId}}/quizzes
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "title": "Tests Flutter",
+  "durationMinutes": 5,
+  "maxAttempts": 1,
+  "questions": [
+    {
+      "text": "Quel paquet teste les blocs ?",
+      "options": ["bloc_test", "mockito", "http", "dio"],
+      "correctIndex": 0,
+      "explanation": "bloc_test fournit blocTest()."
+    }
+  ]
+}
+
+@draftId = {{draft.response.body.id}}
+
+### Lire le quiz complet (avec les bonnes réponses : enseignant seulement)
+GET {{baseUrl}}/quizzes/{{draftId}}
+Authorization: Bearer {{teacherToken}}
+
+### Publier
+POST {{baseUrl}}/quizzes/{{draftId}}/publish
+Authorization: Bearer {{teacherToken}}
+
+### Mes quiz ouverts
+GET {{baseUrl}}/quizzes?status=open
+Authorization: Bearer {{teacherToken}}
+
+### Rapport du quiz
+GET {{baseUrl}}/quizzes/{{draftId}}/report
+Authorization: Bearer {{teacherToken}}
+
+### Fermer le quiz
+POST {{baseUrl}}/quizzes/{{draftId}}/close
+Authorization: Bearer {{teacherToken}}
+
+# ======================================================================
+# Passage d'un quiz (étudiant)
+# ======================================================================
+
+### Quiz à faire
+# @name todo
+GET {{baseUrl}}/quizzes?todo=true
+Authorization: Bearer {{studentToken}}
+
+@quizId = {{todo.response.body.items[0].id}}
+
+### Démarrer (ou reprendre) : AUCUNE bonne réponse dans la réponse
+# @name attempt
+POST {{baseUrl}}/quizzes/{{quizId}}/attempts
+Authorization: Bearer {{studentToken}}
+
+@attemptId = {{attempt.response.body.id}}
+
+### Enregistrer une réponse
+PUT {{baseUrl}}/attempts/{{attemptId}}/answers
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "questionId": "{{attempt.response.body.questions[0].id}}", "optionIndex": 0 }
+
+### Remettre → note calculée par le serveur
+POST {{baseUrl}}/attempts/{{attemptId}}/submit
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "answers": [] }
+
+### Résultat détaillé
+GET {{baseUrl}}/attempts/{{attemptId}}
+Authorization: Bearer {{studentToken}}
+
+### Dernier résultat
+GET {{baseUrl}}/attempts/me/latest
+Authorization: Bearer {{studentToken}}
+
+### Classement du quiz
+GET {{baseUrl}}/quizzes/{{quizId}}/leaderboard
+Authorization: Bearer {{studentToken}}
