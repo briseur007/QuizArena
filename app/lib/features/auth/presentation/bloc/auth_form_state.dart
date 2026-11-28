@@ -60,6 +60,13 @@ abstract final class AuthValidators {
     return null;
   }
 
+  /// Le mot de passe retapé doit être identique (inscription, changement).
+  static String? confirmation(String password, String confirm) {
+    if (confirm.isEmpty) return 'Retape ton mot de passe.';
+    if (confirm != password) return 'Les deux mots de passe ne correspondent pas.';
+    return null;
+  }
+
   static String? name(String value) {
     if (value.trim().length < 2) return 'Indique ton nom complet.';
     return null;

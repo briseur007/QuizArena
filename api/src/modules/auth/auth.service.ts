@@ -2,9 +2,9 @@ import argon2 from 'argon2';
 import { Types } from 'mongoose';
 import type { z } from 'zod';
 import type { Role } from '../../middlewares/auth.js';
-import { conflict, unauthorized } from '../../middlewares/error.js';
+import { conflict, unauthorized, unprocessable } from '../../middlewares/error.js';
 import { Attempt } from '../attempts/attempt.model.js';
-import type { loginBody, registerBody } from './auth.schemas.js';
+import type { changePasswordBody, loginBody, registerBody, updateMeBody } from './auth.schemas.js';
 import { Session } from './session.model.js';
 import {
   formatRefreshToken,
@@ -136,4 +136,38 @@ export async function me(userId: string) {
   const user = await User.findById(userId);
   if (!user) throw unauthorized('Compte introuvable');
   return toUserDto(user);
+}
+
+/** Modifie le nom et/ou l'e-mail de l'utilisateur connecté (jamais son rôle). */
+export async function updateMe(userId: string, input: z.infer<typeof updateMeBody>) {
+  const user = await User.findById(userId);
+  if (!user) throw unauthorized('Compte introuvable');
+
+  if (input.email && input.email !== user.email && (await User.exists({ email: input.email }))) {
+    throw conflict('Un compte existe déjà avec cette adresse', 'EMAIL_TAKEN');
+  }
+  if (input.name !== undefined) user.name = input.name;
+  if (input.email !== undefined) user.email = input.email;
+  await user.save(); // l'index unique protège aussi contre deux changements simultanés
+  return toUserDto(user);
+}
+
+/**
+ * Changement de mot de passe : l'ancien est exigé (un téléphone resté ouvert
+ * ne suffit pas). Les AUTRES sessions sont révoquées ; celle-ci reste active.
+ */
+export async function changePassword(
+  userId: string,
+  currentSessionId: string,
+  input: z.infer<typeof changePasswordBody>,
+) {
+  const user = await User.findById(userId).select('+passwordHash');
+  if (!user) throw unauthorized('Compte introuvable');
+
+  if (!(await argon2.verify(user.passwordHash, input.currentPassword))) {
+    throw unprocessable('Mot de passe actuel incorrect', { currentPassword: ['Mot de passe actuel incorrect'] });
+  }
+  user.passwordHash = await hashPassword(input.newPassword);
+  await user.save();
+  await Session.deleteMany({ userId: user._id, _id: { $ne: currentSessionId } });
 }

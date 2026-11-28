@@ -105,9 +105,39 @@ void main() {
     blocTest<RegisterCubit, AuthFormState>(
       'mot de passe trop court : refusé localement',
       build: () => RegisterCubit(repo),
-      act: (c) => c.submit(name: 'Amina', email: 'amina@universite.bf', password: '1234'),
+      act: (c) => c.submit(name: 'Amina', email: 'amina@universite.bf', password: '1234', confirmPassword: '1234'),
       expect: () => [
         const AuthFormState(status: FormStatus.failure, fieldErrors: {'password': 'Au moins 8 caractères.'}),
+      ],
+    );
+
+    blocTest<RegisterCubit, AuthFormState>(
+      'confirmation différente : refusé localement, aucun appel réseau',
+      build: () => RegisterCubit(repo),
+      act: (c) =>
+          c.submit(name: 'Amina', email: 'amina@universite.bf', password: 'secret123', confirmPassword: 'secret124'),
+      expect: () => [
+        const AuthFormState(
+          status: FormStatus.failure,
+          fieldErrors: {'confirmPassword': 'Les deux mots de passe ne correspondent pas.'},
+        ),
+      ],
+      verify: (_) => verifyNever(
+        () => repo.register(
+          name: any(named: 'name'),
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+          role: any(named: 'role'),
+        ),
+      ),
+    );
+
+    blocTest<RegisterCubit, AuthFormState>(
+      'confirmation vide : demandée',
+      build: () => RegisterCubit(repo),
+      act: (c) => c.submit(name: 'Amina', email: 'amina@universite.bf', password: 'secret123', confirmPassword: ''),
+      expect: () => [
+        const AuthFormState(status: FormStatus.failure, fieldErrors: {'confirmPassword': 'Retape ton mot de passe.'}),
       ],
     );
 
@@ -122,7 +152,12 @@ void main() {
         ),
       ).thenAnswer((_) async => const Err(ConflictFailure('Existe déjà'))),
       build: () => RegisterCubit(repo, initialRole: UserRole.teacher),
-      act: (c) => c.submit(name: 'Dr Nikiema', email: 'nikiema@universite.bf', password: 'secret123'),
+      act: (c) => c.submit(
+        name: 'Dr Nikiema',
+        email: 'nikiema@universite.bf',
+        password: 'secret123',
+        confirmPassword: 'secret123',
+      ),
       expect: () => [
         const AuthFormState(role: UserRole.teacher, status: FormStatus.submitting),
         const AuthFormState(

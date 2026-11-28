@@ -21,6 +21,15 @@ final class AuthLoggedIn extends AuthEvent {
   List<Object?> get props => [user];
 }
 
+/// Le profil a été modifié : on met à jour l'utilisateur de la session.
+final class AuthUserUpdated extends AuthEvent {
+  const AuthUserUpdated(this.user);
+  final User user;
+
+  @override
+  List<Object?> get props => [user];
+}
+
 final class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }

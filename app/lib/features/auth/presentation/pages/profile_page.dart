@@ -1,9 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text.dart';
+import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/surface_card.dart';
 import '../../../../core/widgets/tag.dart';
@@ -40,6 +43,17 @@ class ProfilePage extends StatelessWidget {
                   const Divider(height: 24, color: AppColors.border),
                   _row('Niveau', Tag('Niveau ${user.level}')),
                 ],
+              ],
+            ),
+          ),
+          SurfaceCard(
+            onTap: () => context.push(Routes.editProfile),
+            child: Row(
+              children: [
+                const AppIcon(AppIcons.user, size: 20, color: AppColors.primary),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Modifier mes informations', style: AppText.semibold(14))),
+                const AppIcon(AppIcons.chevron, color: AppColors.muted),
               ],
             ),
           ),

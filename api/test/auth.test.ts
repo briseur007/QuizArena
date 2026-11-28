@@ -84,6 +84,76 @@ describe('GET /auth/me', () => {
   });
 });
 
+describe('PATCH /auth/me — modifier son profil', () => {
+  it('modifie le nom et l’e-mail ; la connexion se fait avec le nouvel e-mail', async () => {
+    const user = await registerUser('teacher', 'Dr Nikiema');
+    const res = await api()
+      .patch('/auth/me')
+      .set(user.auth)
+      .send({ name: 'Pr Nikiema', email: 'Nouveau@Universite.BF' })
+      .expect(200);
+    expect(res.body).toMatchObject({ id: user.id, name: 'Pr Nikiema', email: 'nouveau@universite.bf', role: 'teacher' });
+
+    await api().post('/auth/login').send({ email: 'nouveau@universite.bf', password: 'Password123!' }).expect(200);
+  });
+
+  it('A4/A7 : le rôle ne peut pas être changé (champ ignoré)', async () => {
+    const student = await registerUser('student');
+    const res = await api().patch('/auth/me').set(student.auth).send({ name: 'Amina', role: 'teacher' }).expect(200);
+    expect(res.body.role).toBe('student');
+    // Et il n'a toujours pas les droits d'un enseignant.
+    await api().post('/courses').set(student.auth).send({ name: 'Cours pirate' }).expect(403);
+  });
+
+  it('409 si l’e-mail appartient à un autre compte ; 422 si rien à modifier', async () => {
+    await api().post('/auth/register').send(amina).expect(201);
+    const user = await registerUser('teacher');
+    const taken = await api().patch('/auth/me').set(user.auth).send({ email: amina.email }).expect(409);
+    expect(taken.body.error.code).toBe('EMAIL_TAKEN');
+    await api().patch('/auth/me').set(user.auth).send({}).expect(422);
+    await api().patch('/auth/me').send({ name: 'Sans jeton' }).expect(401);
+  });
+});
+
+describe('PATCH /auth/me/password — changer son mot de passe', () => {
+  it('exige le mot de passe actuel (422 sur le champ si incorrect)', async () => {
+    const user = await registerUser('teacher');
+    const res = await api()
+      .patch('/auth/me/password')
+      .set(user.auth)
+      .send({ currentPassword: 'mauvais', newPassword: 'NouveauMotDePasse1' })
+      .expect(422);
+    expect(res.body.error.details.currentPassword).toEqual(['Mot de passe actuel incorrect']);
+  });
+
+  it('change le mot de passe et révoque les autres sessions, pas la session courante', async () => {
+    const user = await registerUser('teacher');
+    const email = (await api().get('/auth/me').set(user.auth)).body.email;
+    // Deuxième appareil connecté au même compte.
+    const other = await api().post('/auth/login').send({ email, password: 'Password123!' }).expect(200);
+
+    await api()
+      .patch('/auth/me/password')
+      .set(user.auth)
+      .send({ currentPassword: 'Password123!', newPassword: 'NouveauMotDePasse1' })
+      .expect(204);
+
+    await api().post('/auth/login').send({ email, password: 'Password123!' }).expect(401);
+    await api().post('/auth/login').send({ email, password: 'NouveauMotDePasse1' }).expect(200);
+    await api().post('/auth/refresh').send({ refreshToken: other.body.refreshToken }).expect(401);
+    await api().post('/auth/refresh').send({ refreshToken: user.refreshToken }).expect(200);
+  });
+
+  it('nouveau mot de passe trop court : 422', async () => {
+    const user = await registerUser('student');
+    await api()
+      .patch('/auth/me/password')
+      .set(user.auth)
+      .send({ currentPassword: 'Password123!', newPassword: '123' })
+      .expect(422);
+  });
+});
+
 describe('POST /auth/refresh — rotation', () => {
   it('renvoie une nouvelle paire ; l’ancien refresh token ne marche plus', async () => {
     const user = await registerUser('student');

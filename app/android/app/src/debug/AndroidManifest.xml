@@ -4,4 +4,8 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Debug uniquement : autorise http:// pour joindre l'API locale
+         (10.0.2.2 sur émulateur, adb reverse sur téléphone).
+         La version release n'accepte que l'API déployée en HTTPS. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

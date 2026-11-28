@@ -16,6 +16,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc(this._repository) : super(const AuthState.unknown()) {
     on<AuthCheckRequested>(_onCheck);
     on<AuthLoggedIn>((event, emit) => emit(AuthState.authenticated(event.user)));
+    on<AuthUserUpdated>((event, emit) {
+      if (state.status == AuthStatus.authenticated) emit(AuthState.authenticated(event.user));
+    });
     on<AuthLogoutRequested>(_onLogout);
     on<AuthSessionExpired>((event, emit) => emit(const AuthState.unauthenticated(sessionExpired: true)));
 
