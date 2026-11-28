@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { currentUser } from '../../middlewares/auth.js';
-import { loginBody, refreshBody, registerBody } from './auth.schemas.js';
+import { changePasswordBody, loginBody, refreshBody, registerBody, updateMeBody } from './auth.schemas.js';
 import * as service from './auth.service.js';
 
 export async function register(req: Request, res: Response) {
@@ -22,4 +22,14 @@ export async function logout(req: Request, res: Response) {
 
 export async function me(req: Request, res: Response) {
   res.json(await service.me(currentUser(req).id));
+}
+
+export async function updateMe(req: Request, res: Response) {
+  res.json(await service.updateMe(currentUser(req).id, updateMeBody.parse(req.body)));
+}
+
+export async function changePassword(req: Request, res: Response) {
+  const user = currentUser(req);
+  await service.changePassword(user.id, user.sessionId, changePasswordBody.parse(req.body));
+  res.status(204).end();
 }

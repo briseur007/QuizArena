@@ -14,6 +14,7 @@ import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/edit_profile_cubit.dart';
 import '../../features/auth/presentation/bloc/login_cubit.dart';
 import '../../features/courses/data/datasources/course_local_data_source.dart';
 import '../../features/courses/data/datasources/course_remote_data_source.dart';
@@ -78,6 +79,7 @@ void configureDependencies() {
   getIt
     ..registerLazySingleton(() => AuthBloc(getIt()))
     ..registerFactory(() => LoginCubit(getIt()))
+    ..registerFactory(() => EditProfileCubit(getIt()))
     ..registerFactory(() => CoursesBloc(getIt()))
     ..registerFactory(() => QuizListCubit(getIt()))
     ..registerFactory(() => QuizEditorBloc(getIt()))

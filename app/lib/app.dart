@@ -4,8 +4,12 @@ import 'package:material_ui/material_ui.dart';
 
 import 'core/di/injector.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+
+/// Largeur maximale du contenu sur grand écran.
+const double maxContentWidth = 480;
 
 class QuizArenaApp extends StatefulWidget {
   const QuizArenaApp({super.key});
@@ -33,6 +37,17 @@ class _QuizArenaAppState extends State<QuizArenaApp> {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         routerConfig: _router,
+        // Écran large (web, ordinateur) : l'app garde une largeur de téléphone,
+        // centrée, comme dans la maquette (390 px). Sans effet sur mobile.
+        builder: (context, child) => ColoredBox(
+          color: AppColors.segment,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: maxContentWidth),
+              child: child,
+            ),
+          ),
+        ),
       ),
     );
   }

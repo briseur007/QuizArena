@@ -74,8 +74,11 @@ Chaque module : `*.model.ts` (Mongoose + index), `*.schemas.ts` (Zod), `*.servic
 cd app
 flutter pub get
 flutter run --dart-define=API_URL=http://10.0.2.2:3000   # émulateur Android
+flutter run -d chrome --web-port 5050 --dart-define=API_URL=http://localhost:3000   # test rapide dans Chrome
 flutter test
 ```
+
+En debug, Android autorise le HTTP non chiffré (`usesCleartextTraffic`, uniquement dans le manifeste `src/debug`) pour joindre l'API locale ; la version release n'accepte que HTTPS. Dans un navigateur large, l'app garde une largeur de téléphone (480 px maximum).
 
 Structure de l'app (Clean Architecture, feature first) :
 
@@ -84,13 +87,21 @@ lib/
   core/        thème (couleurs de la maquette Figma), widgets partagés, réseau (Dio,
                rafraîchissement des jetons), stockage, DI (get_it), routeur (go_router)
   features/
-    auth/      connexion, inscription, session (AuthBloc), profil
+    auth/      connexion, inscription, session (AuthBloc), profil et modification des informations
     courses/   écrans 02 et 06, rejoindre/créer un cours, cache hors ligne
-    quizzes/   éditeur (07), rapport (08), listes de quiz
+    quizzes/   éditeur (07, choix de la bonne réponse), rapport (08), listes de quiz
     attempts/  passage du quiz (03), résultats (04), classement (05)
 ```
 
 Chaque feature a trois couches : `domain` (entités + contrats, sans Flutter ni Dio), `data` (modèles JSON, sources, implémentations), `presentation` (blocs, pages, widgets).
+
+## Comptes et mots de passe
+
+- **Inscription** : nom (2 caractères minimum), e-mail unique, rôle (étudiant ou enseignant), mot de passe de **8 caractères minimum** (128 maximum), à **retaper** pour confirmation. L'app vérifie la confirmation ; le serveur revérifie la longueur.
+- **Stockage** : les mots de passe sont hachés avec **Argon2id**, jamais stockés ni renvoyés en clair. Les refresh tokens sont conservés sous forme d'empreinte SHA-256.
+- **Profil → Modifier mes informations** (tous les comptes) : changer son nom et son e-mail (409 si l'e-mail est déjà pris). Le rôle ne peut pas être modifié.
+- **Changer de mot de passe** : saisir le mot de passe actuel, puis le nouveau deux fois. Le nouveau doit faire 8 caractères minimum et être différent de l'actuel. Les autres appareils connectés sont déconnectés.
+- **Connexion** : on choisit son rôle avant de se connecter ; un compte enseignant ne peut pas se connecter côté étudiant, et inversement. Après trop d'essais, le serveur répond 429.
 
 ## Endpoints
 
@@ -106,6 +117,8 @@ Codes d'erreur : **401** non connecté, **403** mauvais rôle (ex. un étudiant 
 | POST | /auth/refresh | public (refresh token) | 200 nouvelle paire (rotation) | 401 |
 | POST | /auth/logout | détenteur du refresh token | 204 (révoque la session, idempotent) | 422 |
 | GET | /auth/me | connecté | 200 `user` (`id, name, email, role, level`) | 401 |
+| PATCH | /auth/me | connecté | 200 `user` (nom et/ou e-mail ; le rôle est ignoré) | 401, 409 `EMAIL_TAKEN`, 422 |
+| PATCH | /auth/me/password | connecté | 204 (révoque les autres sessions) | 401, 422 mot de passe actuel incorrect, 429 |
 | GET | /courses?q= | étudiant : rejoints · enseignant : créés | 200 page de `Course` (recherche par nom) | 401, 422 |
 | POST | /courses | enseignant | 201 `Course` (code généré) | 403, 422 |
 | POST | /courses/join | étudiant | 200 `Course` | 404 `COURSE_CODE_UNKNOWN`, 409 `ALREADY_ENROLLED` |
@@ -138,6 +151,12 @@ Créés par `npm run seed`. Mot de passe de tous les comptes : **`QuizArena2026!
 | Enseignant | traore@quizarena.bf | cours « Bases de données » (code `BDDL3A`), quiz « SQL de base » |
 | Étudiante | amina@quizarena.bf | inscrite aux 2 cours, « Flutter & BLoC » **à faire** (pour la démo en direct) |
 | Étudiants | fatou@, ibrahim@, moussa@, sarah@quizarena.bf | ont déjà passé « Flutter & BLoC » (classement rempli) |
+
+## Tests
+
+- **API** : `npm test` dans `api/`, 64 tests d'intégration (auth et profil, cours, quiz, tentatives et minuteur, erreurs), sur une base MongoDB en mémoire.
+- **App** : `flutter test` dans `app/`, 63 tests (blocs avec bloc_test et mocktail, formulaires, éditeur de quiz, erreurs réseau).
+- La CI GitHub Actions lance les deux suites, `flutter analyze` et la vérification du format à chaque push et à chaque pull request.
 
 ## Déploiement (A14)
 

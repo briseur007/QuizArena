@@ -9,6 +9,7 @@ import '../../features/attempts/presentation/pages/result_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/edit_profile_page.dart';
 import '../../features/auth/presentation/pages/profile_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/courses/presentation/pages/home_page.dart';
@@ -106,7 +107,13 @@ GoRouter createRouter(AuthBloc authBloc) {
             ],
           ),
           StatefulShellBranch(
-            routes: [GoRoute(path: Routes.profile, builder: (_, _) => const ProfilePage())],
+            routes: [
+              GoRoute(
+                path: Routes.profile,
+                builder: (_, _) => const ProfilePage(),
+                routes: [GoRoute(path: 'edit', builder: (_, _) => const EditProfilePage())],
+              ),
+            ],
           ),
         ],
       ),

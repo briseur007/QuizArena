@@ -10,5 +10,8 @@ export function authRoutes(authLimiter: RequestHandler) {
   router.post('/refresh', authLimiter, controller.refresh);
   router.post('/logout', controller.logout);
   router.get('/me', requireAuth, controller.me);
+  router.patch('/me', requireAuth, controller.updateMe);
+  // Limité comme la connexion : on y vérifie un mot de passe (force brute).
+  router.patch('/me/password', authLimiter, requireAuth, controller.changePassword);
   return router;
 }

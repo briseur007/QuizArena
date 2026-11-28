@@ -70,6 +70,17 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<User>> updateProfile({String? name, String? email}) => guard(() async {
+    final user = await _remote.updateMe(name: name, email: email);
+    await _cache.write(_userKey, UserModel.toJson(user)); // profil hors ligne à jour
+    return user;
+  });
+
+  @override
+  Future<Result<void>> changePassword({required String currentPassword, required String newPassword}) =>
+      guard(() => _remote.changePassword(currentPassword, newPassword));
+
+  @override
   Future<void> logout() async {
     final refreshToken = await _storage.refreshToken;
     try {

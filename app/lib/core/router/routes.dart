@@ -8,6 +8,7 @@ abstract final class Routes {
   static const home = '/home';
   static const ranking = '/ranking';
   static const profile = '/profile';
+  static const editProfile = '/profile/edit';
 
   // Étudiant.
   static String course(String courseId) => '/home/course/$courseId';

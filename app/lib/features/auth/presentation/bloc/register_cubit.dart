@@ -13,13 +13,19 @@ class RegisterCubit extends Cubit<AuthFormState> {
 
   void roleChanged(UserRole role) => emit(state.copyWith(role: role, status: FormStatus.idle));
 
-  Future<void> submit({required String name, required String email, required String password}) async {
+  Future<void> submit({
+    required String name,
+    required String email,
+    required String password,
+    required String confirmPassword,
+  }) async {
     if (state.status == FormStatus.submitting) return;
 
     final errors = {
       'name': ?AuthValidators.name(name),
       'email': ?AuthValidators.email(email),
       'password': ?AuthValidators.password(password, strict: true),
+      'confirmPassword': ?AuthValidators.confirmation(password, confirmPassword),
     };
     if (errors.isNotEmpty) {
       emit(state.copyWith(status: FormStatus.failure, fieldErrors: errors));

@@ -16,6 +16,12 @@ abstract interface class AuthRepository {
   /// Échoue avec `UnauthorizedFailure` s'il n'y a pas de session valide.
   Future<Result<User>> currentUser();
 
+  /// Modifie le nom et/ou l'e-mail (le rôle n'est jamais modifiable).
+  Future<Result<User>> updateProfile({String? name, String? email});
+
+  /// Change le mot de passe ; les autres sessions du compte sont révoquées.
+  Future<Result<void>> changePassword({required String currentPassword, required String newPassword});
+
   /// Révoque la session côté serveur puis efface les jetons locaux.
   Future<void> logout();
 

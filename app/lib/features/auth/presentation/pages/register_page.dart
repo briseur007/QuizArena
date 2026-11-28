@@ -42,6 +42,7 @@ class _RegisterViewState extends State<RegisterView> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _confirm = TextEditingController();
   bool _obscured = true;
 
   @override
@@ -49,12 +50,18 @@ class _RegisterViewState extends State<RegisterView> {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
   void _submit() {
     FocusScope.of(context).unfocus();
-    context.read<RegisterCubit>().submit(name: _name.text, email: _email.text, password: _password.text);
+    context.read<RegisterCubit>().submit(
+      name: _name.text,
+      email: _email.text,
+      password: _password.text,
+      confirmPassword: _confirm.text,
+    );
   }
 
   @override
@@ -111,13 +118,22 @@ class _RegisterViewState extends State<RegisterView> {
                           controller: _password,
                           errorText: state.fieldErrors['password'],
                           obscureText: _obscured,
-                          textInputAction: TextInputAction.done,
+                          textInputAction: TextInputAction.next,
                           autofillHints: const [AutofillHints.newPassword],
-                          onSubmitted: (_) => _submit(),
                           suffix: PasswordVisibilityButton(
                             obscured: _obscured,
                             onPressed: () => setState(() => _obscured = !_obscured),
                           ),
+                        ),
+                        const SizedBox(height: 14),
+                        LabeledField(
+                          label: 'Confirmer le mot de passe',
+                          hint: 'Retape le même mot de passe',
+                          controller: _confirm,
+                          errorText: state.fieldErrors['confirmPassword'],
+                          obscureText: _obscured,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submit(),
                         ),
                       ],
                     ),

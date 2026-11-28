@@ -311,8 +311,8 @@ class _QuestionEditor extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             question.correctIndex == null && showErrors
-                ? 'Touche le rond de la bonne réponse.'
-                : 'Sélectionnez la bonne réponse.',
+                ? 'Touche le rond (ou la lettre) de la bonne réponse.'
+                : 'Sélectionnez la bonne réponse : touchez le rond à droite.',
             style: AppText.regular(
               11,
               color: question.correctIndex == null && showErrors ? AppColors.danger : AppColors.muted,
@@ -353,8 +353,11 @@ class _OptionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final bloc = context.read<QuizEditorBloc>();
     final fg = correct ? AppColors.success : AppColors.ink;
+    final letter = String.fromCharCode(65 + index);
+    void markCorrect() => bloc.add(EditorCorrectOptionSelected(index));
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.only(left: 4, right: 2),
       decoration: BoxDecoration(
         color: correct ? AppColors.successSoft : AppColors.background,
         borderRadius: BorderRadius.circular(9),
@@ -362,30 +365,34 @@ class _OptionRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            String.fromCharCode(65 + index),
-            style: AppText.bold(11, color: correct ? AppColors.success : AppColors.muted),
+          // La lettre sert aussi à choisir la bonne réponse.
+          InkWell(
+            onTap: markCorrect,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 9),
+              child: Text(letter, style: AppText.bold(11, color: correct ? AppColors.success : AppColors.muted)),
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 4),
           Expanded(
             child: _BareField(
               initialValue: value,
-              hint: 'Réponse ${String.fromCharCode(65 + index)}',
+              hint: 'Réponse $letter',
               style: AppText.medium(13, color: fg),
               onChanged: (v) => bloc.add(EditorOptionChanged(index, v)),
             ),
           ),
-          const SizedBox(width: 10),
-          Semantics(
-            label: correct ? 'Bonne réponse' : 'Choisir comme bonne réponse',
-            button: true,
-            child: InkResponse(
-              onTap: () => bloc.add(EditorCorrectOptionSelected(index)),
-              radius: 18,
-              child: correct
-                  ? const AppIcon(AppIcons.check, size: 17, color: AppColors.success)
-                  : const AppIcon(AppIcons.radio, size: 16),
-            ),
+          // Zone de 40 px (cible tactile confortable) ; le rond de la maquette,
+          // trop pâle sur le fond beige, est foncé pour rester visible.
+          IconButton(
+            onPressed: markCorrect,
+            tooltip: correct ? 'Bonne réponse' : 'Choisir $letter comme bonne réponse',
+            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+            padding: EdgeInsets.zero,
+            icon: correct
+                ? const AppIcon(AppIcons.check, size: 18, color: AppColors.success)
+                : const AppIcon(AppIcons.radio, size: 18, color: AppColors.muted),
           ),
         ],
       ),
